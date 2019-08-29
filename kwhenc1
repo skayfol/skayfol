@@ -1,0 +1,923 @@
+// kwhenc.cpp : Defines the entry point for the console application.
+//
+
+#include "ShlObj.h"
+#include "conio.h"
+#include <stdio.h>
+#include "math.h"
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#undef THIS_FILE
+static char THIS_FILE[] = __FILE__;
+#endif
+#define ENTER (13)
+#define EOCHNK (1000000001)
+#define FILE_INFO WIN32_FIND_DATA
+#define _A_SUBDIR FILE_ATTRIBUTE_DIRECTORY
+#define FILENAME_LENGTH 1025
+#define BOOL bool
+#define TRUE true
+#define FALSE false
+
+char szPwd[81], szPwd1[81], szPwd2[81], szFileName[1025], szFileWLen[1035];
+char * pstrr;//STRRET * pstrr; 
+BOOL mEncrypt;
+BROWSEINFO br;
+LPITEMIDLIST pdl;
+int pch;
+FILE *f, *f2;
+ 	 int result=1, x1, x2;
+	 FILE_INFO fInfo;
+	 HANDLE hFindFile;
+	 char* pszPathToWorkingUp=NULL;
+	 char* pszInitPath=NULL;
+	 char* pszName=NULL;
+	 DWORD Switch_Attr=_A_SUBDIR;
+	 BOOL GoOn=TRUE;
+	 BOOL Back=FALSE;
+	 BOOL RestartedSearch=FALSE;
+	const unsigned long StructLen=sizeof(FILE_INFO), HandleLen=sizeof(HANDLE);
+	 DWORD IsSwitchAttr=0, Attrib=0;
+	 unsigned DirLevel=0;
+	 long double FileLen=0, nRealFileSize=0;
+	 BOOL IsFile=FALSE;
+	//WIN32_FILE_ATTRIBUTE_DATA ExtData;GET_FILEEX_INFO_LEVELS ExtData1;
+	 unsigned long Order=sizeof(DWORD)*256;
+
+/////////////////////////////////////////////////////////////////////////////
+// The one and only application object
+
+//CWinApp theApp;
+//WINOLEAPI  CoInitializeEx(LPVOID pvReserved, DWORD dwCoInit);
+void* PUSHBINARY(void* pStruc, int Bytes, BOOL Restore=FALSE);
+void* POPBINARY(void* pStruc, int Bytes);
+void strback(char* pszString);
+BOOL IsStrict(DWORD Attrib, DWORD Switch_Attr);
+
+int EncryptF(FILE *f, const char *szPwd, const BOOL mEncrypt);
+
+void raise_msg(unsigned long n);
+
+using namespace std;
+int main(int argc, char* argv[])
+{
+		FILE* stream;
+
+
+		OPENFILENAME ofn;       // common dialog box structure
+char szFile[260];       // buffer for file name
+HWND hwnd;              // owner window
+HANDLE hf;              // file handle
+BOOL Once;
+	int ch;int i;
+	int k; int pwl1;
+// Initialize OPENFILENAME
+ZeroMemory(&ofn, sizeof(ofn));
+ofn.lStructSize = sizeof(ofn);
+ofn.hwndOwner = nullptr;//hwnd;
+ofn.lpstrFile = szFile;
+// Set lpstrFile[0] to '\0' so that GetOpenFileName does not 
+// use the contents of szFile to initialize itself.
+ofn.lpstrFile[0] = '\0';
+ofn.nMaxFile = sizeof(szFile);
+ofn.lpstrFilter = "All\0*.*\0Text\0*.TXT\0";
+ofn.nFilterIndex = 1;
+ofn.lpstrFileTitle = NULL;
+ofn.nMaxFileTitle = 0;
+ofn.lpstrInitialDir = NULL;
+ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+ _cputs("\n"); 
+	 _cputs( "File or Folder: File=F Folder(Group)=G " );
+	//int ch;
+	 do
+     {
+        ch = _getch();//szPwd2[i]=char(ch);
+		//if(szPwd2[i]=='\n') break;
+		//_putch(szPwd2[i]);
+		
+        ch = toupper( ch );
+     } while( (ch != 'F')&&(ch != 'G') );
+	 if (ch=='F'){Once=TRUE;_cputs("F");}
+	 if (ch=='G'){Once=FALSE;_cputs("G");}
+	  _cputs("\n"); 
+if (Once)
+{
+// Display the Open dialog box. 
+
+if (::GetOpenFileName(&ofn)==TRUE) 
+		fopen_s(&stream,ofn.lpstrFile, "r+b");
+	else	//fopen_s(&stream,"1.csv", "r");
+		{
+		
+	_flushall();
+	_fcloseall( );
+
+		return(0);
+	}
+	//EnterCriticalSection()
+	
+	_cputs( "Parole Password=" );
+	//int ch;int i;
+	 for (i=0 ; i<41; i++)
+     {
+        ch = _getch();szPwd1[i]=char(ch);
+		if(szPwd1[i]=='\r') break;
+		//_putch(szPwd1[i]);//!!!echoing
+		_cputs( "*" );
+		
+        //ch = toupper( ch );
+     }
+	 szPwd1[i]='\0';
+	 _cputs("\n");
+	 _cputs( "Re-type Parole Password Povtorit'=" );
+	//int ch;
+	 for (i=0 ; i<41; i++)
+     {
+        ch = _getch();szPwd2[i]=char(ch);
+		if(szPwd2[i]=='\r') break;
+		//_putch(szPwd2[i]);
+		_cputs( "*" );
+        //ch = toupper( ch );
+     }
+	 szPwd2[i]='\0'; k=0;  pwl1=strlen(szPwd1);
+	 _cputs("\n");
+	 if (!pwl1) 
+	 {
+	 _cputs( "Incorrect password Nepravilnyj parol'" );
+	 _flushall();
+	_fcloseall( );
+
+		return(0);
+	 }
+	 for (int i=0 ; i<pwl1; i++)
+	 {if(szPwd2[i]!=szPwd1[i]) break;k=i+1;}
+	 if (k<pwl1||pwl1!=strlen(szPwd1))
+{
+	 _cputs( "Incorrect password Nepravilnyj parol'" );
+	 _flushall();
+	_fcloseall( );
+
+		return(0);
+	 }
+	 _cputs("\n"); 
+	 _cputs( "Input Direction: Encrypt=Y Decode=D " );
+	//int ch;
+	 do
+     {
+        ch = _getch();//szPwd2[i]=char(ch);
+		//if(szPwd2[i]=='\n') break;
+		//_putch(szPwd2[i]);
+		
+        ch = toupper( ch );
+     } while( (ch != 'Y')&&(ch != 'D') );
+	 if (ch=='Y'){mEncrypt=TRUE;_cputs("Y");}
+	 if (ch=='D'){mEncrypt=FALSE;_cputs("D");}
+	  _cputs("\n"); 
+	/* _cputs( "Input File handling Mode: Show=S Modify=M " );
+//int ch;
+	 do
+     {
+        ch = _getch();//szPwd2[i]=char(ch);
+		//if(szPwd2[i]=='\n') break;
+		//_putch(szPwd2[i]);
+		
+        ch = toupper( ch );
+     } while( (ch != 'S')&&(ch != 'M') );
+	 if (ch=='S'){_cputs("S");return EncryptBox(stream, szPwd1,mEncrypt);}
+	 if (ch=='M'){_cputs("M");return EncryptF(stream, szPwd1,mEncrypt);}
+	 //DisplayMyMessage(NULL, NULL, "TRY 41");//CreateDialog()
+	// MessageBox(0, "And text here", "MessageBox caption", MB_OK);//EndDialog();//!!!EndDialog()
+		//return EncryptF(stream, szPwd1,mEncrypt);
+//;
+*/
+	 //return
+		 EncryptF(stream, szPwd1,mEncrypt);
+
+}//endofif(Once)
+
+else
+{
+
+	pdl=SHBrowseForFolder(&br);
+			SHGetPathFromIDList(pdl, szFileName);
+			puts(szFileName);//cout<<szFileName<<endl;
+	
+pdl=SHBrowseForFolder(&br);
+			SHGetPathFromIDList(pdl, szFileName);
+		_cputs(szFileName);//	cout<<szFileName<<endl;
+	_cputs( "Parole Password=" );
+//	int ch;int i;
+	 for (i=0 ; i<41; i++)
+     {
+        ch = _getch();szPwd1[i]=char(ch);
+		if(szPwd1[i]=='\r') break;
+		//_putch(szPwd1[i]);//!!!echoing
+		_cputs( "*" );
+		
+        //ch = toupper( ch );
+     }
+	 szPwd1[i]='\0';
+	 _cputs("\n");
+	 _cputs( "Re-type Parole Password Povtorit'=" );
+	//int ch;
+	 for (i=0 ; i<41; i++)
+     {
+        ch = _getch();szPwd2[i]=char(ch);
+		if(szPwd2[i]=='\r') break;
+		//_putch(szPwd2[i]);
+		_cputs( "*" );
+        //ch = toupper( ch );
+     }
+	 szPwd2[i]='\0'; k=0;  pwl1=strlen(szPwd1);
+	 _cputs("\n");
+	 if (!pwl1) 
+	 {
+	 _cputs( "Incorrect password Nepravilnyj parol'" );
+	 _flushall();
+	_fcloseall( );
+
+		return(0);
+	 }
+	 for (int i=0 ; i<pwl1; i++)
+	 {if(szPwd2[i]!=szPwd1[i]) break;k=i+1;}
+	 if (k<pwl1||pwl1!=strlen(szPwd1))
+{
+	 _cputs( "Incorrect password Nepravilnyj parol'" );
+	 _flushall();
+	_fcloseall( );
+
+		return(0);
+	 }
+	 _cputs("\n"); 
+	 _cputs( "Input Direction: Encrypt=Y Decode=D " );
+	//int ch;
+	 do
+     {
+        ch = _getch();//szPwd2[i]=char(ch);
+		//if(szPwd2[i]=='\n') break;
+		//_putch(szPwd2[i]);
+		
+        ch = toupper( ch );
+     } while( (ch != 'Y')&&(ch != 'D') );
+	 if (ch=='Y'){mEncrypt=TRUE;_cputs("Y");}
+	 if (ch=='D'){mEncrypt=FALSE;_cputs("D");}
+	  _cputs("\n");//			cout<<endl;
+//			mEncrypt=(AfxMessageBox(IDS_WAY, MB_YESNO|MB_ICONSTOP)==IDYES)? (1):(0);
+			//strcpy(szPwd, szPwd1);
+			//cout<<"Only 9 chars of pwd will be significant"<<endl;
+			//cout<<"Press any key"<<endl;
+			//getch();
+			f2=fopen("kwhlog.txt", "wt");
+			if (f2==NULL) return 1;
+	if (pszInitPath==NULL)
+	{
+		if ((pszInitPath = (char *) malloc(FILENAME_LENGTH)) == NULL)
+		{
+			return 1;//dosprocessexit(1);
+		}
+		strcpy(pszInitPath, szFileName);
+	}
+	if(pszInitPath[strlen(pszInitPath)-1]!='\\') strcat(pszInitPath,"\\");
+	if ((pszPathToWorkingUp = (char *) malloc(FILENAME_LENGTH)) == NULL)
+	{
+		return 1;//dosprocessexit(1);  //terminate program if out of memory 
+	}
+	if ((pszName = (char *) malloc(FILENAME_LENGTH)) == NULL)
+	{
+		return 1;//dosprocessexit(1);  // terminate program if out of memory 
+	}
+	strcpy(pszPathToWorkingUp, pszInitPath);
+
+	//MessageBoxA(hWnd2, "???????????? ?????? ?????? 9 ???? ??????", "???????????", MB_OK);
+	//************************************************************************
+	//***Begin processing loop
+	//*************************************************************************
+	do
+	{
+		if (!Back)
+		{
+			RestartedSearch=FALSE;
+			strcpy(pszName, pszPathToWorkingUp);
+			strcat(pszName,"*.*");
+			hFindFile=FindFirstFile(pszName, &fInfo);
+			if (hFindFile==INVALID_HANDLE_VALUE) result=0;
+			else result=1;
+		}
+		while (result)//(GoOn1==TRUE)
+		{
+			Attrib=GetFileAttributes(fInfo.cFileName);IsSwitchAttr=IsStrict(Attrib,Switch_Attr);
+			//printf("%s : %u / %u\n", fInfo.cFileName, IsSwitchAttr, Attrib);getch();
+			if (!IsSwitchAttr) IsFile=TRUE;
+			if (IsSwitchAttr)
+			{
+				Back=FALSE;
+				x1=strcmp(fInfo.cFileName,".");
+				x2=strcmp(fInfo.cFileName,"..");
+				if (x1&&x2)//x1 or x2 =0 if equal
+				{
+
+					//exceptions handle - files with directory bit on
+					strcpy(pszName, pszPathToWorkingUp);
+					strcat(pszName, fInfo.cFileName);strcat(pszName, "\\");strcat(pszName,"*.*");
+					if (PUSHBINARY(&fInfo, StructLen)==NULL)
+					{
+						//fprintf(stderr,
+						//"Not enough memory to allocate Stack\n");
+						flushall();
+						fcloseall();
+						return 1;//dosprocessexit(1); // terminate program if out of memory 
+					}
+
+					if (PUSHBINARY(&hFindFile, HandleLen)==NULL)
+					{
+						//fprintf(stderr,
+						//"Not enough memory to allocate Stack\n");
+						flushall();
+						fcloseall();
+						return 1;//dosprocessexit(1);  // terminate program if out of memory 
+					}
+
+					hFindFile=FindFirstFile(pszName, &fInfo);
+					if (hFindFile==INVALID_HANDLE_VALUE)
+					{
+						POPBINARY(&hFindFile, HandleLen);
+						POPBINARY(&fInfo, StructLen);
+						//strback1(pszName);
+						strcpy(pszName, pszPathToWorkingUp);
+						strcat(pszName,"*.*");
+						IsFile=TRUE;
+						goto ICantBelieveIUsedAGoToStatement;//continue;//go to new step
+					}
+					else
+					{
+						POPBINARY(&hFindFile, HandleLen);
+						POPBINARY(&fInfo, StructLen);
+						strcpy(pszName, pszPathToWorkingUp);
+						strcat(pszName,"*.*");
+					}
+					//end of exceptions handle
+
+					DirLevel++;
+					IsFile=FALSE;
+					//fprintf(DebugStream, "Level%u Begin-%s\n", DirLevel, fInfo.cFileName);
+					if (PUSHBINARY(&fInfo, StructLen)==NULL)
+					{
+						//fprintf(stderr,
+						//"Not enough memory to allocate Stack\n");
+						flushall();
+						fcloseall();
+						return 1;//dosprocessexit(1);  // terminate program if out of memory 
+					}
+
+					if (PUSHBINARY(&hFindFile, HandleLen)==NULL)
+					{
+						//fprintf(stderr,
+						//"Not enough memory to allocate Stack\n");
+						flushall();
+						fcloseall();
+						return 1;//dosprocessexit(1);  // terminate program if out of memory 
+					}
+					strcat(pszPathToWorkingUp, fInfo.cFileName);
+					strcat(pszPathToWorkingUp, "\\");
+					//fprintf(stderr, "%s\n", pszPathToWorkingUp);
+					//if (!FileLen) fprintf(stdf, "%s\n", pszPathToWorkingUp);
+					result=0;
+					RestartedSearch=TRUE;
+					continue;//break;
+				}
+			}
+ICantBelieveIUsedAGoToStatement://fprintf(stderr, "%s%s\n", pszPathToWorkingUp, fInfo.cFileName);
+			//if (FileLen)
+			{
+				if (IsFile)
+				{
+							strcpy(szFileName, pszPathToWorkingUp);
+							strcat(szFileName, fInfo.cFileName);
+							f= fopen(szFileName, "r+b");
+//MessageBoxA(hWnd2, szFileName, "???????????", MB_OK);
+                   		if (!f)
+							{
+							fprintf(f2, "\nCould not open %s\n", szFileName);
+							}
+							else EncryptF(f, szPwd1, mEncrypt);
+
+				}
+			}
+			//else
+				//fprintf(stdf, "%s%s\n", pszPathToWorkingUp, fInfo.cFileName);
+			if (!result) continue;
+			result=FindNextFile(hFindFile, &fInfo);
+		}
+		if (!result)
+		{
+			if (RestartedSearch) continue;
+
+			if (strcmp(pszInitPath, pszPathToWorkingUp)==0) GoOn=FALSE; //if all done
+			// (end of most upper initial directory in full variant)
+			else
+			{
+				//fprintf(stderr, "%s\n", StdDirDelimiter);
+				//if (!FileLen) fprintf(stdf, "%s\n", StdDirDelimiter);
+				Back=TRUE;
+				POPBINARY(&hFindFile, HandleLen);
+				POPBINARY(&fInfo, StructLen);
+				DirLevel--;
+				strback(pszPathToWorkingUp);
+				strcpy(pszName, pszPathToWorkingUp);
+				strcat(pszName,"*.*");
+				result=FindNextFile(hFindFile, &fInfo);
+			}
+		}
+	} while (GoOn==TRUE);
+//*********************************************************************************
+//end of loop **********************************************************************
+//*********************************************************************************
+		
+//		AfxMessageBox(IDS_FILE, MB_OK);
+		fclose(f2);
+
+}//endofmainelse=ifnotOnce		
+
+
+
+
+			puts("PRESS Enter key");
+			int c;
+			 while ((c = fgetc(stdin))!=EOF && c!='\n')
+	           ;//noop
+
+	return 0;
+}
+/*int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
+{
+	int nRetCode = 0;
+	// initialize MFC and print and error on failure
+	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
+	{
+		// TODO: change error code to suit your needs
+		cerr << _T("Fatal Error: MFC initialization failed") << endl;
+		nRetCode = 1;
+	return nRetCode;
+	}
+CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+		// TODO: code your application's behavior here.
+		AfxMessageBox(IDS_HELLO, MB_OK);
+		if (AfxMessageBox(IDS_CHOICE_FILE, MB_YESNO|MB_ICONSTOP)==IDYES)
+		{
+			CFileDialog dlg(TRUE);
+			dlg.DoModal();
+		
+			strcpy(szFileName, dlg.m_ofn.lpstrFile);
+			cout<<szFileName<<endl;
+			cout<<"Input the password, please"<<endl;
+			szPwd1[0]=0;
+			while ((pch=getch())!=ENTER)
+			{
+				cout<<"*";
+				int i=strlen(szPwd1);
+				szPwd1[i]=pch;
+				szPwd1[i+1]=0;
+			}
+			cout<<endl<<"Confirm the password, please"<<endl;
+			szPwd2[0]=0;
+			while ((pch=getch())!=ENTER)
+			{
+				cout<<"*";
+				int i=strlen(szPwd2);
+				szPwd2[i]=pch;
+				szPwd2[i+1]=0;
+			}
+			if (strcmp(szPwd1, szPwd2))
+			{
+				cout<<endl<<"Why don't you give it another try?"<<endl;
+				cout<<"Input the password, please"<<endl;
+				szPwd1[0]=0;
+				while ((pch=getch())!=ENTER)
+				{
+					cout<<"*";
+					int i=strlen(szPwd1);
+					szPwd1[i]=pch;
+					szPwd1[i+1]=0;
+				}
+				cout<<endl<<"Confirm the password, please"<<endl;
+				szPwd2[0]=0;
+				while ((pch=getch())!=ENTER)
+				{
+					cout<<"*";
+					int i=strlen(szPwd2);
+					szPwd2[i]=pch;
+					szPwd2[i+1]=0;
+				}
+				if (strcmp(szPwd1, szPwd2))
+				{
+					cout<<endl<<"Double incorrect password, abort"<<endl;
+					return 1;
+				}
+
+			}
+			cout<<endl;
+					f= fopen(szFileName, "r+b");
+			if (!f)
+			{
+				cout<<endl<<"Could't open file:"<<endl;
+				cout<<szFileName<<endl;
+				cout<<"Press any key"<<endl;
+				getch();
+				return 1;
+			}
+			mEncrypt=(AfxMessageBox(IDS_WAY, MB_YESNO|MB_ICONSTOP)==IDYES)? (1):(0);
+			strcpy(szPwd, szPwd1);
+			cout<<"Only 9 chars of pwd will be significant"<<endl;
+			cout<<"Press any key"<<endl;
+			getch();
+			return EncryptF(f, szPwd);
+		}
+			pdl=SHBrowseForFolder(&br);
+			SHGetPathFromIDList(pdl, szFileName);
+			cout<<szFileName<<endl;
+			cout<<"Input the password, please"<<endl;
+			szPwd1[0]=0;
+			while ((pch=getch())!=ENTER)
+			{
+				cout<<"*";
+				int i=strlen(szPwd1);
+				szPwd1[i]=pch;
+				szPwd1[i+1]=0;
+			}
+			cout<<endl<<"Confirm the password, please"<<endl;
+			szPwd2[0]=0;
+			while ((pch=getch())!=ENTER)
+			{
+				cout<<"*";
+				int i=strlen(szPwd2);
+				szPwd2[i]=pch;
+				szPwd2[i+1]=0;
+			}
+			if (strcmp(szPwd1, szPwd2))
+			{
+				cout<<endl<<"Why don't you give it another try?"<<endl;
+				cout<<"Input the password, please"<<endl;
+				szPwd1[0]=0;
+				while ((pch=getch())!=ENTER)
+				{
+					cout<<"*";
+					int i=strlen(szPwd1);
+					szPwd1[i]=pch;
+					szPwd1[i+1]=0;
+				}
+				cout<<endl<<"Confirm the password, please"<<endl;
+				szPwd2[0]=0;
+				while ((pch=getch())!=ENTER)
+				{
+					cout<<"*";
+					int i=strlen(szPwd2);
+					szPwd2[i]=pch;
+					szPwd2[i+1]=0;
+				}
+				if (strcmp(szPwd1, szPwd2))
+				{
+					cout<<endl<<"Double incorrect password, abort"<<endl;
+					return 1;
+				}
+
+			}
+			cout<<endl;
+			mEncrypt=(AfxMessageBox(IDS_WAY, MB_YESNO|MB_ICONSTOP)==IDYES)? (1):(0);
+			strcpy(szPwd, szPwd1);
+			cout<<"Only 9 chars of pwd will be significant"<<endl;
+			cout<<"Press any key"<<endl;
+			getch();
+			f2=fopen("kwhlog.txt", "wt");
+			if (f2==NULL) return 1;
+	if (pszInitPath==NULL)
+	{
+		if ((pszInitPath = (char *) malloc(FILENAME_LENGTH)) == NULL)
+		{
+			return 1;//dosprocessexit(1);
+		}
+		strcpy(pszInitPath, szFileName);
+	}
+	if(pszInitPath[strlen(pszInitPath)-1]!='\\') strcat(pszInitPath,"\\");
+	if ((pszPathToWorkingUp = (char *) malloc(FILENAME_LENGTH)) == NULL)
+	{
+		return 1;//dosprocessexit(1);  //terminate program if out of memory 
+	}
+	if ((pszName = (char *) malloc(FILENAME_LENGTH)) == NULL)
+	{
+		return 1;//dosprocessexit(1);  // terminate program if out of memory 
+	}
+	strcpy(pszPathToWorkingUp, pszInitPath);
+
+	//MessageBoxA(hWnd2, "???????????? ?????? ?????? 9 ???? ??????", "???????????", MB_OK);
+	//************************************************************************
+	//***Begin processing loop
+	//*************************************************************************
+	do
+	{
+		if (!Back)
+		{
+			RestartedSearch=FALSE;
+			strcpy(pszName, pszPathToWorkingUp);
+			strcat(pszName,"*.*");
+			hFindFile=FindFirstFile(pszName, &fInfo);
+			if (hFindFile==INVALID_HANDLE_VALUE) result=0;
+			else result=1;
+		}
+		while (result)//(GoOn1==TRUE)
+		{
+			Attrib=GetFileAttributes(fInfo.cFileName);IsSwitchAttr=IsStrict(Attrib,Switch_Attr);
+			//printf("%s : %u / %u\n", fInfo.cFileName, IsSwitchAttr, Attrib);getch();
+			if (!IsSwitchAttr) IsFile=TRUE;
+			if (IsSwitchAttr)
+			{
+				Back=FALSE;
+				x1=strcmp(fInfo.cFileName,".");
+				x2=strcmp(fInfo.cFileName,"..");
+				if (x1&&x2)//x1 or x2 =0 if equal
+				{
+
+					//exceptions handle - files with directory bit on
+					strcpy(pszName, pszPathToWorkingUp);
+					strcat(pszName, fInfo.cFileName);strcat(pszName, "\\");strcat(pszName,"*.*");
+					if (PUSHBINARY(&fInfo, StructLen)==NULL)
+					{
+						//fprintf(stderr,
+						//"Not enough memory to allocate Stack\n");
+						flushall();
+						fcloseall();
+						return 1;//dosprocessexit(1); // terminate program if out of memory 
+					}
+
+					if (PUSHBINARY(&hFindFile, HandleLen)==NULL)
+					{
+						//fprintf(stderr,
+						//"Not enough memory to allocate Stack\n");
+						flushall();
+						fcloseall();
+						return 1;//dosprocessexit(1);  // terminate program if out of memory 
+					}
+
+					hFindFile=FindFirstFile(pszName, &fInfo);
+					if (hFindFile==INVALID_HANDLE_VALUE)
+					{
+						POPBINARY(&hFindFile, HandleLen);
+						POPBINARY(&fInfo, StructLen);
+						//strback1(pszName);
+						strcpy(pszName, pszPathToWorkingUp);
+						strcat(pszName,"*.*");
+						IsFile=TRUE;
+						goto ICantBelieveIUsedAGoToStatement;//continue;//go to new step
+					}
+					else
+					{
+						POPBINARY(&hFindFile, HandleLen);
+						POPBINARY(&fInfo, StructLen);
+						strcpy(pszName, pszPathToWorkingUp);
+						strcat(pszName,"*.*");
+					}
+					//end of exceptions handle
+
+					DirLevel++;
+					IsFile=FALSE;
+					//fprintf(DebugStream, "Level%u Begin-%s\n", DirLevel, fInfo.cFileName);
+					if (PUSHBINARY(&fInfo, StructLen)==NULL)
+					{
+						//fprintf(stderr,
+						//"Not enough memory to allocate Stack\n");
+						flushall();
+						fcloseall();
+						return 1;//dosprocessexit(1);  // terminate program if out of memory 
+					}
+
+					if (PUSHBINARY(&hFindFile, HandleLen)==NULL)
+					{
+						//fprintf(stderr,
+						//"Not enough memory to allocate Stack\n");
+						flushall();
+						fcloseall();
+						return 1;//dosprocessexit(1);  // terminate program if out of memory 
+					}
+					strcat(pszPathToWorkingUp, fInfo.cFileName);
+					strcat(pszPathToWorkingUp, "\\");
+					//fprintf(stderr, "%s\n", pszPathToWorkingUp);
+					//if (!FileLen) fprintf(stdf, "%s\n", pszPathToWorkingUp);
+					result=0;
+					RestartedSearch=TRUE;
+					continue;//break;
+				}
+			}
+ICantBelieveIUsedAGoToStatement://fprintf(stderr, "%s%s\n", pszPathToWorkingUp, fInfo.cFileName);
+			//if (FileLen)
+			{
+				if (IsFile)
+				{
+							strcpy(szFileName, pszPathToWorkingUp);
+							strcat(szFileName, fInfo.cFileName);
+							f= fopen(szFileName, "r+b");
+//MessageBoxA(hWnd2, szFileName, "???????????", MB_OK);
+                   		if (!f)
+							{
+							fprintf(f2, "\nCould not open %s\n", szFileName);
+							}
+							else EncryptF(f, szPwd);
+
+				}
+			}
+			//else
+				//fprintf(stdf, "%s%s\n", pszPathToWorkingUp, fInfo.cFileName);
+			if (!result) continue;
+			result=FindNextFile(hFindFile, &fInfo);
+		}
+		if (!result)
+		{
+			if (RestartedSearch) continue;
+
+			if (strcmp(pszInitPath, pszPathToWorkingUp)==0) GoOn=FALSE; //if all done
+			// (end of most upper initial directory in full variant)
+			else
+			{
+				//fprintf(stderr, "%s\n", StdDirDelimiter);
+				//if (!FileLen) fprintf(stdf, "%s\n", StdDirDelimiter);
+				Back=TRUE;
+				POPBINARY(&hFindFile, HandleLen);
+				POPBINARY(&fInfo, StructLen);
+				DirLevel--;
+				strback(pszPathToWorkingUp);
+				strcpy(pszName, pszPathToWorkingUp);
+				strcat(pszName,"*.*");
+				result=FindNextFile(hFindFile, &fInfo);
+			}
+		}
+	} while (GoOn==TRUE);
+//*********************************************************************************
+//end of loop **********************************************************************
+//*********************************************************************************
+		
+		AfxMessageBox(IDS_FILE, MB_OK);
+		fclose(f2);
+
+		return 0;
+
+
+	//return nRetCode;
+}
+*/
+
+
+int EncryptF(FILE *f, const char *szPwd, bool mEncrypt)
+{
+	unsigned short c, pc, ppc, res1, res2, res11, res12, res, d;
+	short e;
+	int ch; unsigned char ch2;
+	unsigned long n=0, Ai, Ak, Al, B, C;
+	unsigned pwl=strlen(szPwd), i, l, k=0;
+	unsigned t=(9 < pwl) ? (9):(pwl);
+	double cc1, x1, xp1, x2, xp2;
+	char ss[33], chs[2]; chs[1]='\0';
+	//FILE *f1=fopen((pwl=1)?("c:\\q.txt")("c:\\qq.txt"), "wb");
+	//MessageBoxA(hWnd2, "???????????? ?????? ?????? 9 ???? ??????", "???????????", MB_OK);
+
+	while(1)//while (!feof(f))
+	{
+		ch=fgetc(f);
+		if (EOF==ch) break;
+      if (255==(unsigned)ch) continue;
+		if (ferror(f))
+		{
+			puts("error");
+			printf("%d\n",n);//AfxMessageBox(IDS_HERROR, MB_OK|MB_ICONSTOP);//Msg
+			break;
+		}
+		c=(unsigned short) ch;
+		k=n%t;
+		pc=szPwd[k];
+		pc=(pc*(k+1))%255+1;
+		cc1=exp(((double)(pc*15))/255);
+		if (cc1<=10)
+		{
+			cc1=(double)((unsigned long)(1000*cc1)); cc1=cc1/1000;
+			cc1=exp(cc1);
+		}
+		else if (cc1<=100) cc1=cc1*100;
+		pc=((unsigned long)cc1)%255;
+
+		x1=exp(((double)(pc*15))/255);
+		if (x1<=10)
+		{
+			x1=(double)((unsigned long)(1000*x1)); x1=x1/1000;
+			x1=exp(x1);
+		}
+		else if (x1<=100) x1=x1*100;
+		res1=((unsigned long)x1)%255;
+
+
+		ppc=( (unsigned long)(pc * (n%EOCHNK)) ) %255+1;
+		x2=exp(((double)(ppc*15))/255);
+		x2*=((n/EOCHNK)%100)+1;
+		if (x2<=10)
+		{
+			x2=(double)((unsigned long)(1000*x2)); x2=x2/1000;
+			x2=exp(x2);
+		}
+		else if (x2<=100) x2=x2*100;
+		x2+=(n/EOCHNK)%(77*EOCHNK);
+		res2=((unsigned long)x2)%255;
+		res=(res1+res2)%255;
+		//d=c;
+		if (mEncrypt) c=(c+res)%255;
+		else
+		{
+	      e=c-res;
+		  c=(e<0)? (e+255):(e);
+		}
+		ch=(char)c;
+		fseek(f, -1, SEEK_CUR);
+		//chs[0]=(char)ch;
+		//MessageBoxA(hWnd2, chs , "???????????", MB_OK);
+		fputc(ch, f);fflush(f);
+		//fputc((char)res1, f1);fflush(f1);
+		fseek(f, 0, SEEK_CUR);
+		//ultoa(n, ss, 10);
+		if (!(n%102400)) raise_msg(n/102400);
+		n++;
+	}
+	//MessageBoxA(hWnd2, "100%", "???????????", MB_OK);
+
+	fclose(f);//fclose(f1);
+	return 0;
+}
+
+void raise_msg(unsigned long n)
+{
+	static char s[40];
+	char a[1050];
+	strcpy(szFileWLen, szFileName);
+	if (n)
+	{
+		strcat(szFileWLen, " - ");
+		ltoa(n, s, 10);//_ultoa(n, s, 10);
+		strcat(szFileWLen, s);
+		strcat(szFileWLen, "00 k byte");//in 100 k
+	}
+		CharToOem(szFileWLen, a);
+		puts(a);//cout<<a<<endl;
+}
+void *PUSHBINARY(void * pStruc, int Bytes, BOOL Restore)
+{
+ void * pNewStruc=NULL;
+//require: memmove !!!!! -ANSI C
+  typedef struct {
+   void * pLocStackElem;
+   void * pLocStackPrevInstance;} SIMPLE_STACK;
+
+ static void * pStackTop=NULL;
+
+ SIMPLE_STACK * pStack=NULL;
+ int LocOff=sizeof(SIMPLE_STACK);
+ if (Restore)
+ {
+   pStack = (SIMPLE_STACK *)pStackTop;
+   memmove(pStruc, pStack->pLocStackElem, Bytes);
+   pStackTop = pStack->pLocStackPrevInstance;
+   free(pStack->pLocStackElem); //only in this order
+   free(pStack);//we can safely free, otherwise pass bad pointer
+   return(pStruc);
+ }
+
+ if(( pNewStruc=malloc(Bytes))==NULL)
+ {
+    fprintf(stderr, "PUSHBINARY:No enough memory to work\n");
+    return(NULL);
+ }
+  memmove(pNewStruc, pStruc, Bytes);
+
+ if (( pStack = (SIMPLE_STACK *)malloc(LocOff))==NULL)
+   {
+    fprintf(stderr, "PUSHBBINARY:No enough memory to work\n");
+    return(NULL);
+   }
+
+ pStack->pLocStackPrevInstance=pStackTop;
+ pStack->pLocStackElem=pNewStruc;
+ pStackTop=pStack;
+ return(pStackTop);
+}
+void *POPBINARY(void * pStruc, int Bytes)
+{
+ return PUSHBINARY(pStruc, Bytes, TRUE);
+}
+BOOL IsStrict(DWORD Attrib, DWORD Switch_Attr)
+{
+	//if (Attrib==4294967295) return FALSE;
+	if (Attrib&Switch_Attr) return TRUE;
+	return FALSE;
+}
+void strback(char *pszString)
+{
+ char *ptr=NULL;
+ ptr = strrchr(pszString, '\\');
+ *ptr='\0';
+ ptr = strrchr(pszString, '\\');
+ *(ptr+1)='\0';
+ return;
+}
